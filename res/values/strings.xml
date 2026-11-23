@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">动画管家</string>
+    <string name="service_label">动画管家 · 使用计时</string>
+    <string name="service_summary">到点自动关闭被限制的动画 app</string>
+    <string name="service_desc">开启后，动画管家会知道当前打开的是哪个 app。被限制的 app 连续使用达到设定时长后，会自动退回桌面并锁屏。</string>
+    <string name="notif_label">动画管家 · 暂停播放</string>
+</resources>

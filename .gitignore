@@ -1,0 +1,16 @@
+# 构建中间产物
+classes/
+dexout/
+gen/
+base.apk
+aligned.apk
+app.apk
+app.apk.idsig
+compiled.zip
+
+# 签名文件（build.py 会在缺失时自动生成）
+*.keystore
+
+# 系统文件
+.DS_Store
+Thumbs.db
