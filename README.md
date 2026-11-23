@@ -4,6 +4,20 @@
 
 不需要 root，不需要 adb，不需要电脑常开。
 
+## 下载安装
+
+**[⬇ 下载 kidscreen-v1.0.apk](https://github.com/3xp10it/kidscreen/releases/latest)**
+
+传到平板/手机上点击安装即可（需允许「安装未知来源应用」）。仓库里的 `dist/kidscreen-v1.0.apk` 是同一份文件。
+
+装完必须做三件事，缺一个都不生效：
+
+1. 开启无障碍服务
+2. 授权通知使用权（否则锁屏后声音还在响）
+3. 关闭电池优化
+
+详见下面的「使用」。
+
 ## 它解决什么问题
 
 系统自带的「应用限时 / 儿童空间」在部分机型上缺失，或者到点只弹个提示框、孩子点「取消」就继续看。
@@ -51,7 +65,7 @@
 python build.py
 ```
 
-产物是 `app.apk`（debug 签名，可直接安装）。
+产物是 `app.apk`（debug 签名，可直接安装）。已编译好的版本放在 `dist/kidscreen-v1.0.apk`，也在 [Releases](https://github.com/3xp10it/kidscreen/releases) 里。
 
 ## 使用
 
