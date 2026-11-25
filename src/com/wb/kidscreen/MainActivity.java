@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     private TextView statusView;
     private LinearLayout fixPanel;      // 无障碍没在运行时的修复卡片
     private TextView fixText;
+    private LinearLayout lockPanel;     // 「锁定最近任务卡片」提醒
     private TextView targetsView;
     private EditText minutesView;
     private EditText promptView;
@@ -94,6 +95,44 @@ public class MainActivity extends Activity {
             }
         }));
         root.addView(fixPanel);
+
+        // 「锁定最近任务卡片」提醒 —— 这是目前唯一能让计时"静默失效"的操作。
+        // ColorOS 从最近任务划掉/清除时会把 enabled_accessibility_services 清空，
+        // 无障碍服务被系统注销，但界面上看不出任何异常，用户只会觉得"到点没管"。
+        // 系统没有 API 能查到卡片锁没锁，所以只能事前提醒 + 让用户自己确认一次。
+        lockPanel = new LinearLayout(this);
+        lockPanel.setOrientation(LinearLayout.VERTICAL);
+        lockPanel.setBackgroundColor(0x1FFF9800);
+        lockPanel.setPadding(fp, fp, fp, fp);
+        lockPanel.setVisibility(View.GONE);
+
+        TextView lockTitle = new TextView(this);
+        lockTitle.setText("注意：请把本 app 在「最近任务」里锁定");
+        lockTitle.setTextSize(14);
+        lockTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        lockPanel.addView(lockTitle);
+
+        TextView lockBody = new TextView(this);
+        lockBody.setTextSize(13);
+        lockBody.setText("不锁定的话，一旦被划掉或点「清除」，系统会把计时服务一起注销，"
+                + "限制就完全失效了 —— 而且界面上看不出任何异常。");
+        lockPanel.addView(lockBody);
+
+        lockPanel.addView(makeButton("怎么锁定？", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLockHelp();
+            }
+        }));
+        lockPanel.addView(makeButton("已经锁定了，不用再提示", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Prefs.setLockTipDone(MainActivity.this, true);
+                toast("好的，之后不再提示");
+                refresh();
+            }
+        }));
+        root.addView(lockPanel);
 
         addSpace();
 
@@ -290,6 +329,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** 锁定最近任务卡片的操作步骤（各家 ROM 位置不同，给最常见的两种说法）。 */
+    private void showLockHelp() {
+        new AlertDialog.Builder(this)
+                .setTitle("怎么锁定最近任务卡片")
+                .setMessage("1. 打开「最近任务」（屏幕下方的方形键，或从底部上滑停住）\n"
+                        + "2. 找到「动画管家」这张卡片\n"
+                        + "3. 点卡片右上角的「更多」（三个点）\n"
+                        + "4. 点「锁定」，卡片上会出现一个小锁图标\n\n"
+                        + "锁定之后，点「清除」或者把它划掉，都不会再影响计时服务。\n\n"
+                        + "如果找不到「更多」，也可以试试长按卡片，或者把卡片往下拖一点。")
+                .setPositiveButton("知道了", null)
+                .create()
+                .show();
+    }
+
     private void toast(String s) {
         Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
     }
@@ -317,6 +371,8 @@ public class MainActivity extends Activity {
         } catch (Throwable ignored) {
         }
         sb.append("停止声音：").append(notif ? "已授权 ✓" : "未授权 ✗（点第④步）").append("\n");
+        boolean locked = Prefs.lockTipDone(this);
+        sb.append("卡片锁定：").append(locked ? "已确认 ✓" : "未确认（见下面的提示）").append("\n");
         sb.append("上限：").append(limit / 60000).append(" 分钟\n");
         sb.append("已用：").append(fmt(used));
         if (blocked > now) {
@@ -340,6 +396,11 @@ public class MainActivity extends Activity {
                       + "如果列表里已经开了、这里还是这个状态，就是被「受限设置」拦住了，"
                       + "先点「允许受限设置」那个按钮。");
         }
+
+        // 只在服务正常跑着的时候提醒锁定：服务都没开，先解决开服务的问题，
+        // 两个黄条同时弹出来反而看不清重点。
+        lockPanel.setVisibility(
+                st == SvcState.ON && !Prefs.lockTipDone(this) ? View.VISIBLE : View.GONE);
 
         Set<String> t = Prefs.targets(this);
         if (t.isEmpty()) {

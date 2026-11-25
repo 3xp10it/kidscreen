@@ -21,6 +21,7 @@ public class Prefs {
     public static final String KEY_MUTED = "muted";
     public static final String KEY_SAVED_VOLUME = "saved_volume";
     public static final String KEY_PROMPT = "prompt";
+    public static final String KEY_LOCK_TIP = "lock_tip_done";
 
     public static final String DEFAULT_PROMPT = "宝宝，要休息了";
 
@@ -120,5 +121,17 @@ public class Prefs {
 
     public static void setPrompt(Context c, String v) {
         get(c).edit().putString(KEY_PROMPT, v == null ? "" : v.trim()).apply();
+    }
+
+    /**
+     * 用户是否已确认「最近任务卡片已锁定」。
+     * 系统没有 API 能查到卡片锁没锁，只能让用户自己确认一次，之后不再唠叨。
+     */
+    public static boolean lockTipDone(Context c) {
+        return get(c).getBoolean(KEY_LOCK_TIP, false);
+    }
+
+    public static void setLockTipDone(Context c, boolean v) {
+        get(c).edit().putBoolean(KEY_LOCK_TIP, v).apply();
     }
 }
