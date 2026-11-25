@@ -8,6 +8,9 @@
 
 **[⬇ 下载 kidscreen-v1.2.apk](https://github.com/3xp10it/kidscreen/releases/latest)**
 
+Release 附件偶尔抽风（GitHub 侧 500）时，用这个直链，是同一份文件：
+**[⬇ 直链下载 dist/kidscreen-v1.2.apk](https://raw.githubusercontent.com/3xp10it/kidscreen/main/dist/kidscreen-v1.2.apk)**
+
 传到平板/手机上点击安装即可（需允许「安装未知来源应用」）。仓库里的 `dist/kidscreen-v1.2.apk` 是同一份文件。
 
 装完必须做四件事，缺一个都不生效：
