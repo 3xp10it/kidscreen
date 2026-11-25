@@ -35,6 +35,8 @@ import java.util.Set;
 public class MainActivity extends Activity {
 
     private TextView statusView;
+    private LinearLayout fixPanel;      // 无障碍没在运行时的修复卡片
+    private TextView fixText;
     private TextView targetsView;
     private EditText minutesView;
     private EditText promptView;
@@ -59,6 +61,36 @@ public class MainActivity extends Activity {
 
         statusView = addText("");
         statusView.setTextSize(14);
+
+        // 无障碍没跑起来时的修复卡片：把「为什么」和「点哪里」写清楚。
+        // 只写「点第①步」没用 —— Android 13 起侧载/重装的 app 会先被「受限设置」拦住，
+        // 用户在无障碍里勾了也起不来，得先去应用详情里允许受限设置。
+        fixPanel = new LinearLayout(this);
+        fixPanel.setOrientation(LinearLayout.VERTICAL);
+        fixPanel.setBackgroundColor(0x1AFF5722);
+        int fp = dp(12);
+        fixPanel.setPadding(fp, fp, fp, fp);
+        fixPanel.setVisibility(View.GONE);
+        fixText = new TextView(this);
+        fixText.setTextSize(13);
+        fixPanel.addView(fixText);
+        fixPanel.addView(makeButton("允许受限设置（进应用详情）", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openAppDetails();
+            }
+        }));
+        fixPanel.addView(makeButton("打开无障碍设置", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                } catch (Throwable t) {
+                    toast("请手动进入：设置 → 无障碍");
+                }
+            }
+        }));
+        root.addView(fixPanel);
 
         addSpace();
 
@@ -229,13 +261,30 @@ public class MainActivity extends Activity {
         root.addView(v);
     }
 
-    private Button addButton(String s, View.OnClickListener l) {
+    private Button makeButton(String s, View.OnClickListener l) {
         Button b = new Button(this);
         b.setText(s);
         b.setAllCaps(false);
         b.setOnClickListener(l);
+        return b;
+    }
+
+    private Button addButton(String s, View.OnClickListener l) {
+        Button b = makeButton(s, l);
         root.addView(b);
         return b;
+    }
+
+    /** 跳到本应用的系统详情页：右上角 ⋮ 里就是「允许受限设置」。 */
+    private void openAppDetails() {
+        try {
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            i.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(i);
+            toast("点右上角 ⋮ → 允许受限设置");
+        } catch (Throwable t) {
+            toast("请手动进入：设置 → 应用 → 动画管家");
+        }
     }
 
     private void toast(String s) {
@@ -245,14 +294,18 @@ public class MainActivity extends Activity {
     // ---------------- 状态刷新 ----------------
 
     private void refresh() {
-        boolean on = isServiceEnabled();
+        int st = SvcState.get(this);
         long used = Prefs.usedMs(this);
         long limit = Prefs.limitMs(this);
         long blocked = Prefs.blockedUntil(this);
         long now = System.currentTimeMillis();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("计时服务：").append(on ? "已开启 ✓" : "未开启 ✗（点上面第①步）").append("\n");
+        sb.append("计时服务：")
+                .append(st == SvcState.ON ? "已开启 ✓"
+                        : st == SvcState.BLOCKED ? "勾了但没运行 ✗（看下面的提示）"
+                        : "未开启 ✗（看下面的提示）")
+                .append("\n");
         boolean notif = false;
         try {
             String enabled = Settings.Secure.getString(
@@ -269,6 +322,21 @@ public class MainActivity extends Activity {
         sb.append("\n触发次数：").append(Prefs.triggerCount(this));
         sb.append("\n最近一次：").append(Prefs.lastTriggerText(this));
         statusView.setText(sb.toString());
+
+        if (st == SvcState.ON) {
+            fixPanel.setVisibility(View.GONE);
+        } else {
+            fixPanel.setVisibility(View.VISIBLE);
+            fixText.setText(st == SvcState.BLOCKED
+                    ? "无障碍里已经勾了「动画管家 · 使用计时」，但系统没让它运行。\n"
+                      + "Android 13 起，侧载/重装过的 app 要先允许「受限设置」：\n"
+                      + "点下面的「允许受限设置」→ 右上角 ⋮ → 允许受限设置 → 再回无障碍打开它。\n"
+                      + "（每次重装 app 都要重新允许一次）"
+                    : "无障碍服务还没开：点下面的「① 打开无障碍设置」，"
+                      + "找到「动画管家 · 使用计时」打开。\n"
+                      + "如果列表里已经开了、这里还是这个状态，就是被「受限设置」拦住了，"
+                      + "先点「允许受限设置」那个按钮。");
+        }
 
         Set<String> t = Prefs.targets(this);
         if (t.isEmpty()) {
@@ -294,20 +362,6 @@ public class MainActivity extends Activity {
         } catch (Throwable t) {
             return pkg;
         }
-    }
-
-    private boolean isServiceEnabled() {
-        try {
-            String enabled = Settings.Secure.getString(
-                    getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-            if (enabled == null) return false;
-            String me = getPackageName() + "/" + WatchService.class.getName();
-            for (String s : enabled.split(":")) {
-                if (s.equalsIgnoreCase(me)) return true;
-            }
-        } catch (Throwable ignored) {
-        }
-        return false;
     }
 
     private void saveMinutes() {
