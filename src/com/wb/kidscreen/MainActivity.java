@@ -56,6 +56,9 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         setContentView(scroll);
 
+        // 打开 app 就把自检看门狗挂上，不用等下次开机
+        BootReceiver.ensureWatchdog(getApplicationContext());
+
         addTitle("动画管家");
         addHint("看动画的 app 连续用满设定时长，就自动退回桌面并锁屏。");
 
