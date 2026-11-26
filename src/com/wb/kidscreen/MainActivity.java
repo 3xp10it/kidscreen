@@ -317,9 +317,10 @@ public class MainActivity extends Activity {
         } catch (Throwable ignored) {
         }
         sb.append("停止声音：").append(notif ? "已授权 ✓" : "未授权 ✗（点第④步）").append("\n");
-        // excludeFromRecents 让本 app 不出现在最近任务里，用户既划不到、点「清除」
-        // 也碰不到它，enabled_accessibility_services 就不会被系统清空。
-        sb.append("最近任务：已隐藏 ✓（不会被划掉）\n");
+        // excludeFromRecents + noHistory 让本 app 任何时候都不出现在最近任务里，
+        // 划不到。但「清除」按钮仍会让 ColorOS 撤销无障碍授权，那是系统行为，
+        // app 侧改不了，只能靠看门狗兜底 —— 所以这里提醒别点它。
+        sb.append("最近任务：已隐藏 ✓（别点「清除」）\n");
         sb.append("上限：").append(limit / 60000).append(" 分钟\n");
         sb.append("已用：").append(fmt(used));
         if (blocked > now) {

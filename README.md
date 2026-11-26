@@ -6,12 +6,12 @@
 
 ## 下载安装
 
-**[⬇ 下载 kidscreen-v1.4.apk](https://github.com/3xp10it/kidscreen/releases/latest)**
+**[⬇ 下载 kidscreen-v1.5.apk](https://github.com/3xp10it/kidscreen/releases/latest)**
 
 Release 附件偶尔抽风（GitHub 侧 500）时，用这个直链，是同一份文件：
-**[⬇ 直链下载 dist/kidscreen-v1.4.apk](https://raw.githubusercontent.com/3xp10it/kidscreen/main/dist/kidscreen-v1.4.apk)**
+**[⬇ 直链下载 dist/kidscreen-v1.5.apk](https://raw.githubusercontent.com/3xp10it/kidscreen/main/dist/kidscreen-v1.5.apk)**
 
-传到平板/手机上点击安装即可（需允许「安装未知来源应用」）。仓库里的 `dist/kidscreen-v1.4.apk` 是同一份文件。
+传到平板/手机上点击安装即可（需允许「安装未知来源应用」）。仓库里的 `dist/kidscreen-v1.5.apk` 是同一份文件。
 
 装完必须做四件事，缺一个都不生效：
 
@@ -22,8 +22,9 @@ Release 附件偶尔抽风（GitHub 侧 500）时，用这个直链，是同一�
    设置 → 应用 → 动画管家 → 右上角 ⋮ → 允许受限设置。
    不做这一步，无障碍里勾了也会被系统立刻关掉，表现为「计时服务：未开启」。
 
-**不需要手动锁定最近任务卡片** —— v1.4 起 app 自己就不出现在最近任务里了，
-划不到也清不掉，见下面的「为什么不用担心被划掉」。
+**不需要手动锁定最近任务卡片** —— v1.5 起 app 在任何时候都不出现在最近任务里，
+划不到，见下面的「什么情况下会失效（重要）」。
+但要记住一件事：**不要点最近任务的「清除」按钮**，那个挡不住。
 
 详见下面的「使用」。
 
@@ -74,7 +75,7 @@ Release 附件偶尔抽风（GitHub 侧 500）时，用这个直链，是同一�
 python build.py
 ```
 
-产物是 `app.apk`（debug 签名，可直接安装）。已编译好的版本放在 `dist/kidscreen-v1.4.apk`，也在 [Releases](https://github.com/3xp10it/kidscreen/releases) 里。
+产物是 `app.apk`（debug 签名，可直接安装）。已编译好的版本放在 `dist/kidscreen-v1.5.apk`，也在 [Releases](https://github.com/3xp10it/kidscreen/releases) 里。
 
 ## 使用
 
@@ -107,7 +108,7 @@ Android 上第三方 app 没有权限结束别人的进程（`killBackgroundProc
 **重启后计时会归零吗？**
 会。服务启动时会检查上次使用时间，超过 30 分钟就清零，避免出现「昨天看剩 5 分钟」的情况。
 
-## 为什么不用担心被划掉
+## 什么情况下会失效（重要）
 
 **关掉界面完全没问题。** 按返回键、按 Home、锁屏、待机、正常关机重启，计时都照常工作 ——
 因为计时跑在无障碍服务里，跟 app 界面开没开没有关系。实测（限额 1 分钟）：
@@ -119,7 +120,7 @@ Android 上第三方 app 没有权限结束别人的进程（`killBackgroundProc
 00:02:01  TRIGGER at used=60000                   ← 满 1 分钟，正常触发
 ```
 
-**危险的是从「最近任务」里划掉 / 点「清除」。** 实测 ColorOS（OPPO Pad）：
+**从「最近任务」里划掉 / 点「清除」会失效。** 实测 ColorOS（OPPO Pad）：
 
 ```
 划掉前：enabled_accessibility_services = com.wb.kidscreen/com.wb.kidscreen.WatchService
@@ -128,32 +129,48 @@ Android 上第三方 app 没有权限结束别人的进程（`killBackgroundProc
         pidof com.wb.kidscreen → 无进程
 ```
 
-然后打开目标 app 看 75 秒，**完全没有反应**（`trigger_count` 不变，`used_ms` 不涨）。
 原因是系统把无障碍授权整个注销了，不是简单杀进程 —— 这也是 Android 的设计：
-用户主动划掉，等于告诉系统「我不要这个服务了」。app 自己拦不住。
+用户主动划掉，等于告诉系统「我不要这个服务了」。
 
-**v1.4 起从代码上把这条路堵死了。** `MainActivity` 加了
-`android:excludeFromRecents="true"`，app 根本不会出现在最近任务列表里。
-没有卡片，就划不到；点「清除」也碰不到它。实测：
+### 两个属性怎么堵这条路
+
+v1.4 先加了 `android:excludeFromRecents="true"`，但**不够**。实测发现：app 退到后台后
+卡片确实消失了，可只要 app 还在前台、直接按「最近任务」键，ColorOS 仍会把「当前任务」
+当作一张卡片显示出来，照样能划掉 —— 划掉后设置立刻变 null。
+
+v1.5 补上 `android:noHistory="true"`：Activity 一离开前台就立即销毁，连「当前任务」的
+卡片都留不下来。实测两种姿势都没有卡片：
 
 ```
-最近任务列表 → 只有别的 app，没有动画管家
-点「清除」   → enabled_accessibility_services 仍在
-               Bound services 仍在
-               pidof → 29772（没变）
-打开目标 app → 立刻 target entered: com.wb.videoplayer
+app 前台按最近任务  → 没有动画管家卡片
+按 Home 后按最近任务 → 没有动画管家卡片
 ```
 
-代价是从最近任务回不到本 app，要从桌面图标重新打开 —— 这个 app 平时也不需要常开，
-值得。
+### 「清除」按钮挡不住，这个必须知道
 
-**如果你的机型不认这个属性**（少数 ROM 会忽略），卡片还会出现，那就手动锁定一次：
-最近任务 → 卡片右上角「更多」→ 锁定。锁定后点「清除」或划掉都不再影响计时
-（实测：服务、进程、pid 全不变）。另外看门狗每 10 分钟自检一次，兜底。
+实测两次，点「清除」后 `enabled_accessibility_services` 都变成 null ——
+**不管卡片在不在、电池优化白名单加没加**。这是 ColorOS 清理后台时的固定行为，
+app 侧没有任何办法阻止（想自己写回设置需要 `WRITE_SECURE_SETTINGS`，
+这台机器的 adb shell 都被拒了：`Neither user 2000 nor current process has ...`）。
 
-**补充：关机前划掉的话，开机也不会自动恢复。** 因为划掉那一刻设置就被清空了，
-这个「空」是持久化的，开机读到的还是空。app 只会在开机 30 秒后发通知提醒你。
-所以「别让卡片被划掉」这件事，v1.4 用 `excludeFromRecents` 一次性解决了。
+| 操作 | 结果 |
+|---|---|
+| 按返回键 / Home / 锁屏 / 关机重启 | ✅ 正常 |
+| 从最近任务划掉卡片 | ✅ 卡片已不存在，划不到 |
+| 点最近任务的「清除」按钮 | ❌ 会失效 |
+| 应用详情里「强制停止」 | ❌ 会失效 |
+
+**兜底**：服务被关掉后，看门狗每 10 分钟自检一次，弹「动画管家没在计时」的通知；
+开机后 30 秒也会查一次。通知点开直接进引导页。
+
+**补充：关机前被划掉/清除的话，开机也不会自动恢复** —— 设置已被清空且持久化，
+开机读到的还是空。
+
+### 代价
+
+`noHistory` 会让 Activity 一离开前台就销毁，所以从「无障碍设置」等系统页面返回时，
+app 会重新创建（回到首页，未保存的输入框内容会丢）。配置都存在 SharedPreferences 里，
+不会丢。考虑到它换来的是「永远不会被误划掉」，这个取舍值得。
 
 ## 更新或重装后「计时服务」自己关了？
 
@@ -171,15 +188,19 @@ Android 13 起，手动安装（侧载）的 app 被系统当作「受限来源�
 3. 回到 app，状态变成「计时服务：已开启 ✓」才算成功
 
 **更常见的触发方式：从「最近任务」里把动画管家划掉 / 点「清除」。**
-v1.4 起 app 已经不出现在最近任务里了，正常情况下碰不到这条。
-详见上面的「为什么不用担心被划掉」。万一还是被关掉了（少数 ROM 忽略
-`excludeFromRecents`），app 每 10 分钟自检一次，服务没在跑就发一条
-「动画管家没在计时」的通知，点通知直接回到引导。
+v1.5 起 app 已经不出现在最近任务里了，正常情况下碰不到这条。
+详见上面的「什么情况下会失效（重要）」。万一还是被关掉了，app 每 10 分钟自检一次，
+服务没在跑就发一条「动画管家没在计时」的通知，点通知直接回到引导。
 
 v1.1 起 app 会区分「根本没开」和「开了但被系统拦住」两种情况，并在开机 30 秒后自检一次。
 
 ## 更新记录
 
+- **v1.5**：`MainActivity` 加 `android:noHistory="true"`。v1.4 的 `excludeFromRecents`
+  只挡住了后台任务和「一键清除」，实测发现 app 在前台时直接按「最近任务」，
+  ColorOS 仍会显示「当前任务」卡片、照样能划掉。加 `noHistory` 后 Activity
+  离开前台即销毁，卡片彻底不出现，两种姿势都划不到。
+  同时明确记录：「清除」按钮仍会撤销无障碍授权，app 侧无法阻止，只能靠看门狗兜底。
 - **v1.4**：`MainActivity` 加 `android:excludeFromRecents="true"`，本 app 不再出现在
   最近任务列表里 —— 用户既划不到、点「清除」也碰不到，`enabled_accessibility_services`
   不会被系统清空。实测点「清除」后服务、进程、pid 全不变，打开目标 app 立刻开始计时。
