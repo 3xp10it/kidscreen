@@ -448,8 +448,18 @@ public class MainActivity extends Activity {
             toast("请输入 1 ~ 600");
             return;
         }
+        int old = Prefs.limitMin(this);
         Prefs.get(this).edit().putInt(Prefs.KEY_LIMIT_MIN, v).apply();
-        toast("已保存：" + v + " 分钟");
+        if (v != old) {
+            // 改了限额就重开一轮：不清零的话，之前用掉的时间会算进新限额里，
+            // 看起来像「压根没过 N 分钟就被限制了」。
+            Prefs.setUsedMs(this, 0L);
+            Prefs.setBlockedUntil(this, 0L);
+            WatchService.requestReset();
+            toast("已保存：" + v + " 分钟，计时和冷却都从 0 开始");
+        } else {
+            toast("已保存：" + v + " 分钟");
+        }
         refresh();
     }
 

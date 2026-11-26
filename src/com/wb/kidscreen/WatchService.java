@@ -44,6 +44,18 @@ public class WatchService extends AccessibilityService {
     /** 冷却期内反复打开时，两次踢回的最小间隔 */
     private static final long KICK_DEBOUNCE_MS = 2500L;
 
+    /**
+     * 家长在界面上改了限额，要求把这一轮计时和冷却都清零。
+     * 界面和服务在同一个进程里，用静态标志传递最省事 —— 不需要广播，也不用重启服务。
+     * 不清零的话会很难理解：限额从 30 分钟改成 2 分钟，已用的 1 分 15 秒还在，
+     * 孩子看 45 秒就被限制了，看起来像「压根没过 2 分钟」。
+     */
+    private static volatile boolean pendingReset = false;
+
+    public static void requestReset() {
+        pendingReset = true;
+    }
+
     private Handler handler;
     private Runnable ticker;
 
@@ -128,6 +140,16 @@ public class WatchService extends AccessibilityService {
         long now = System.currentTimeMillis();
         limitMs = Prefs.limitMs(this);
         targets = Prefs.targets(this);
+
+        // 家长改过限额：这一轮从头开始，冷却也一起解除
+        if (pendingReset) {
+            pendingReset = false;
+            usedMs = 0;
+            Prefs.setUsedMs(this, 0L);
+            Prefs.setBlockedUntil(this, 0L);
+            restoreMedia();
+            Log.i(TAG, "reset by settings change");
+        }
 
         // 冷却到期自动解除，并把音量还回去
         long blocked = Prefs.blockedUntil(this);
@@ -314,7 +336,12 @@ public class WatchService extends AccessibilityService {
         lastKickTs = now;
         Log.i(TAG, "kick during cooldown");
 
-        toast("还没到时间哦～");
+        long left = (Prefs.blockedUntil(this) - now) / 1000L;
+        if (left > 0) {
+            toast("还在休息，剩 " + (left / 60) + " 分 " + (left % 60) + " 秒");
+        } else {
+            toast("还没到时间哦～");
+        }
         pauseTargets();
         muteMedia();
         performGlobalAction(GLOBAL_ACTION_HOME);

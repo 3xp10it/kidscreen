@@ -6,12 +6,12 @@
 
 ## 下载安装
 
-**[⬇ 下载 kidscreen-v1.6.apk](https://github.com/3xp10it/kidscreen/releases/latest)**
+**[⬇ 下载 kidscreen-v1.7.apk](https://github.com/3xp10it/kidscreen/releases/latest)**
 
 Release 附件偶尔抽风（GitHub 侧 500）时，用这个直链，是同一份文件：
-**[⬇ 直链下载 dist/kidscreen-v1.6.apk](https://raw.githubusercontent.com/3xp10it/kidscreen/main/dist/kidscreen-v1.6.apk)**
+**[⬇ 直链下载 dist/kidscreen-v1.7.apk](https://raw.githubusercontent.com/3xp10it/kidscreen/main/dist/kidscreen-v1.7.apk)**
 
-传到平板/手机上点击安装即可（需允许「安装未知来源应用」）。仓库里的 `dist/kidscreen-v1.6.apk` 是同一份文件。
+传到平板/手机上点击安装即可（需允许「安装未知来源应用」）。仓库里的 `dist/kidscreen-v1.7.apk` 是同一份文件。
 
 装完必须做五件事，缺一个都不生效：
 
@@ -48,8 +48,26 @@ Release 附件偶尔抽风（GitHub 侧 500）时，用这个直链，是同一�
       ↓ 说完
   锁屏
       ↓
-  进入冷却期，期间再打开会被立刻踢回
+  进入冷却期（时长 = 你设的分钟数），期间再打开会被立刻踢回
 ```
+
+## 计时是怎么算的（两个容易误会的地方）
+
+**1. 是「累计」不是「连续」。** 孩子中途切到桌面、看一眼别的东西再回来，时间接着累加。
+只有离开目标 app **超过 30 分钟**，这一轮才作废、从 0 重算。
+
+**2. 改了限额就重开一轮。** v1.7 起，点「保存时长」且数值有变化时，
+已用时间和冷却状态会一起清零，提示语是「已保存：N 分钟，计时和冷却都从 0 开始」。
+
+> 为什么要有这条：之前不清零，30 分钟改成 2 分钟时，已用的 1 分 15 秒还在，
+> 孩子看 45 秒就被限制了 —— 看起来像「压根没过 2 分钟」，其实是老账没销。
+
+**3. 刚打开就被踢回，通常是冷却期。** 触发限制后会进入一段「休息时间」，
+长度等于你设的分钟数。这期间打开目标 app 会被立刻退回桌面，并弹一句
+「还在休息，剩 X 分 Y 秒」。这是设计如此，不是计时不准 ——
+看 app 首页状态区的「冷却中：还剩 N 秒」也能确认。
+
+想提前结束休息：点首页的「清零计时 / 解除冷却」。
 
 ## 权限说明（三个，都是系统正规接口）
 
@@ -75,7 +93,7 @@ Release 附件偶尔抽风（GitHub 侧 500）时，用这个直链，是同一�
 python build.py
 ```
 
-产物是 `app.apk`（debug 签名，可直接安装）。已编译好的版本放在 `dist/kidscreen-v1.6.apk`，也在 [Releases](https://github.com/3xp10it/kidscreen/releases) 里。
+产物是 `app.apk`（debug 签名，可直接安装）。已编译好的版本放在 `dist/kidscreen-v1.7.apk`，也在 [Releases](https://github.com/3xp10it/kidscreen/releases) 里。
 
 ## 使用
 
@@ -203,6 +221,9 @@ v1.1 起 app 会区分「根本没开」和「开了但被系统拦住」两种�
 
 ## 更新记录
 
+- **v1.7**：改限额时把「已用时间」和「冷却」一起清零（仅当数值有变化），
+  避免出现「改成 2 分钟却只看了 45 秒就被限制」的误会；
+  冷却期被踢回时，提示语改成「还在休息，剩 X 分 Y 秒」，能看出还剩多久。
 - **v1.6**：撤回 v1.4 / v1.5 的 `excludeFromRecents` 和 `noHistory`，回到「卡片可见」，
   并恢复 v1.3 的「请锁定卡片」提醒。
   原因是实测推翻了 v1.5 的前提：**没有卡片时，点「清除」反而会把进程杀掉并撤销无障碍授权**
