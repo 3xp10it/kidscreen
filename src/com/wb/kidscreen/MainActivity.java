@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     private TextView statusView;
     private LinearLayout fixPanel;      // 无障碍没在运行时的修复卡片
     private TextView fixText;
+    private LinearLayout lockPanel;     // 「锁定最近任务卡片」提醒
     private TextView targetsView;
     private EditText minutesView;
     private EditText promptView;
@@ -94,6 +95,50 @@ public class MainActivity extends Activity {
             }
         }));
         root.addView(fixPanel);
+
+        // 「锁定最近任务卡片」提醒 —— 这是唯一能让计时长期稳定运行的操作。
+        // 实测（ColorOS / OPPO Pad，卡片可见的正常版本）：
+        //   · 锁定 + 划掉卡片 → 服务、进程、pid 全不变
+        //   · 锁定 + 点「清除」→ 服务、进程、pid 全不变
+        //   · 未锁定 + 划掉卡片 → enabled_accessibility_services 被清成 null
+        // 反过来，如果让 app 不出现在最近任务里（excludeFromRecents / noHistory），
+        // 「清除」会把它当成后台进程杀掉并撤销无障碍授权 —— 比不隐藏更糟，已撤回。
+        // 系统没有 API 能查到卡片锁没锁，只能让用户自己确认一次，之后不再唠叨。
+        lockPanel = new LinearLayout(this);
+        lockPanel.setOrientation(LinearLayout.VERTICAL);
+        lockPanel.setBackgroundColor(0x1FFF9800);
+        int lp = dp(12);
+        lockPanel.setPadding(lp, lp, lp, lp);
+        lockPanel.setVisibility(View.GONE);
+
+        TextView lockTitle = new TextView(this);
+        lockTitle.setText("注意：请把本 app 在「最近任务」里锁定");
+        lockTitle.setTextSize(14);
+        lockTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        lockPanel.addView(lockTitle);
+
+        TextView lockBody = new TextView(this);
+        lockBody.setTextSize(13);
+        lockBody.setText("不锁定的话，一旦被划掉或点「清除」，系统会把计时服务一起注销，"
+                + "限制就完全失效了 —— 而且界面上看不出任何异常。"
+                + "锁定一次即可，之后不用再管。");
+        lockPanel.addView(lockBody);
+
+        lockPanel.addView(makeButton("怎么锁定？", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLockHelp();
+            }
+        }));
+        lockPanel.addView(makeButton("已经锁定了，不用再提示", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Prefs.setLockTipDone(MainActivity.this, true);
+                toast("好的，之后不再提示");
+                refresh();
+            }
+        }));
+        root.addView(lockPanel);
 
         addSpace();
 
@@ -290,6 +335,23 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** 锁定最近任务卡片的操作步骤（各家 ROM 位置不同，给最常见的两种说法）。 */
+    private void showLockHelp() {
+        new AlertDialog.Builder(this)
+                .setTitle("怎么锁定最近任务卡片")
+                .setMessage("1. 点屏幕下方的三横键，打开「最近任务」\n"
+                        + "2. 找到「动画管家」这张卡片\n"
+                        + "3. 点卡片右上角的「更多」（三个点）\n"
+                        + "4. 点「锁定」，卡片标题旁会出现一个小锁图标\n\n"
+                        + "锁定之后，无论是把它划掉，还是点「清除」，"
+                        + "都不会再影响计时服务。\n\n"
+                        + "如果找不到「更多」，也可以试试长按卡片，"
+                        + "或者把卡片往下拖一点。")
+                .setPositiveButton("知道了", null)
+                .create()
+                .show();
+    }
+
     private void toast(String s) {
         Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
     }
@@ -317,10 +379,8 @@ public class MainActivity extends Activity {
         } catch (Throwable ignored) {
         }
         sb.append("停止声音：").append(notif ? "已授权 ✓" : "未授权 ✗（点第④步）").append("\n");
-        // excludeFromRecents + noHistory 让本 app 任何时候都不出现在最近任务里，
-        // 划不到。但「清除」按钮仍会让 ColorOS 撤销无障碍授权，那是系统行为，
-        // app 侧改不了，只能靠看门狗兜底 —— 所以这里提醒别点它。
-        sb.append("最近任务：已隐藏 ✓（别点「清除」）\n");
+        boolean locked = Prefs.lockTipDone(this);
+        sb.append("卡片锁定：").append(locked ? "已确认 ✓" : "未确认（见下面的提示）").append("\n");
         sb.append("上限：").append(limit / 60000).append(" 分钟\n");
         sb.append("已用：").append(fmt(used));
         if (blocked > now) {
@@ -344,6 +404,11 @@ public class MainActivity extends Activity {
                       + "如果列表里已经开了、这里还是这个状态，就是被「受限设置」拦住了，"
                       + "先点「允许受限设置」那个按钮。");
         }
+
+        // 只在服务正常跑着的时候提醒锁定：服务都没开，先解决开服务的问题，
+        // 两个黄条同时弹出来反而看不清重点。
+        lockPanel.setVisibility(
+                st == SvcState.ON && !Prefs.lockTipDone(this) ? View.VISIBLE : View.GONE);
 
         Set<String> t = Prefs.targets(this);
         if (t.isEmpty()) {
